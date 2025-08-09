@@ -210,7 +210,28 @@ function drawWheel(highlightIdx = -1) {
     }
   }
 
-  // Zoom animado del sector ganador (overlay, no cambia la física)
+    // hueco central
+  ctx.beginPath();
+  ctx.arc(cx, cy, inner, 0, Math.PI * 2);
+  ctx.fillStyle = "#0d111a";
+  ctx.fill();
+
+  // resaltar ganador (zoom)
+  if (highlightIdx >= 0) {
+    const start = angle + highlightIdx * step;
+    const end = start + step;
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, outer * 1.04, start, end);
+    ctx.closePath();
+    ctx.fillStyle = "rgba(125, 211, 252, 0.22)"; // cian translúcido
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+// Zoom animado del sector ganador (overlay, no cambia la física)
 function animateWinnerZoom(idx){
   if (idx < 0 || idx >= items.length) return;
 
@@ -269,29 +290,7 @@ function animateWinnerZoom(idx){
   requestAnimationFrame(frame);
 }
 
-  // hueco central
-  ctx.beginPath();
-  ctx.arc(cx, cy, inner, 0, Math.PI * 2);
-  ctx.fillStyle = "#0d111a";
-  ctx.fill();
-
-  // resaltar ganador (zoom)
-  if (highlightIdx >= 0) {
-    const start = angle + highlightIdx * step;
-    const end = start + step;
-    ctx.save();
-    ctx.beginPath();
-    ctx.moveTo(cx, cy);
-    ctx.arc(cx, cy, outer * 1.04, start, end);
-    ctx.closePath();
-    ctx.fillStyle = "rgba(125, 211, 252, 0.22)"; // cian translúcido
-    ctx.fill();
-    ctx.restore();
-  }
-}
-
 /* ===== spin logic (física + tick) ===== */
-
 // Audio para el tick
 const tickSound = new Audio('tick.wav');
 tickSound.volume = 0.35; // volumen (0.0 a 1.0)
@@ -374,9 +373,9 @@ function spin(){
   const outer = Math.min(W, H) * 0.48;
   const px2rad = px => px / outer;
 
-  const WOBBLE_DUR  = 1400;  // ms (más largo)
-  const WOBBLE_FREQ = 5.5;   // Hz
-  const WOBBLE_MIN_PX = 18;  // ≈ recorrido visible en el borde
+  const WOBBLE_DUR  = 1700;  // ms (más largo)
+  const WOBBLE_FREQ = 4.8;   // Hz
+  const WOBBLE_MIN_PX = 40;  // ≈ recorrido visible en el borde
 
   function tick(now){
     const dt = Math.min(0.05, (now - last) / 1000);
@@ -442,7 +441,7 @@ function spin(){
       return;
     }
 
-    const amp = wobbleAmp0 * Math.exp(-2.2 * tw);
+    const amp = wobbleAmp0 * Math.exp(-1.3 * tw);
     const phase = 2 * Math.PI * WOBBLE_FREQ * ((now - wobbleStart) / 1000);
     angle = baseAngle + amp * Math.sin(phase);
 
@@ -576,6 +575,7 @@ elCanvas.addEventListener("mouseleave", () => {
 loadState();
 drawWheel();
 console.log("[Ruleta] drawWheel -> items:", items.length);
+
 
 
 
