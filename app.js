@@ -410,8 +410,9 @@ function seedIfEmpty(){
 
 /* ===== init ===== */
 loadState();
-seedifEmpty();
+seedIfEmpty();
 drawWheel();
 console.log("[Ruleta] drawWheel -> items:", items.length);
+
 
 
