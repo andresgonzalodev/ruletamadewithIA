@@ -18,6 +18,7 @@ let winningIndex = -1;
 const elCanvas = $("#wheel");
 
 const ctx = elCanvas.getContext("2d");
+console.log("[Ruleta] canvas:", elCanvas, "ctx ok:", !!ctx);
 if (!ctx) console.error("Canvas no encontrado o sin contexto 2D");
 
 const elInput = $("#gamesInput");
@@ -398,4 +399,5 @@ elCanvas.addEventListener("mouseleave", () => {
 /* ===== init ===== */
 loadState();
 drawWheel();
+console.log("[Ruleta] drawWheel -> items:", items.length);
 
