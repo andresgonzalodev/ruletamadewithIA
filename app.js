@@ -395,9 +395,23 @@ elCanvas.addEventListener("mouseleave", () => {
   elTip.hidden = true;
 });
 
+function seedIfEmpty(){
+  if (items.length === 0 && !elInput.value.trim()){
+    const demo = [
+      "Valheim","The Planet Crafter","Grand Theft Auto V Legacy",
+      "Hogwarts Legacy","Risk of Rain 2","Phasmophobia","Deep Rock Galactic","The Witcher 3"
+    ];
+    elInput.value = demo.join("\n");
+    items = demo.slice();
+    updateCount();
+    console.log("[Ruleta] demo precargada:", items.length);
+  }
+}
 
 /* ===== init ===== */
 loadState();
+seedifEmpty();
 drawWheel();
 console.log("[Ruleta] drawWheel -> items:", items.length);
+
 
