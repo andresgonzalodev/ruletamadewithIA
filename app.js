@@ -259,11 +259,10 @@ function stopAndAnnounce(){
   announceWinner(items[idx]);
 }
 
-// Giro con perfil coseno (suave, larga cola, sin imán)
+// Giro con perfil coseno (suave, larga cola, sin imán + wobble final)
 function spin(){
   if (spinning || items.length === 0) return;
 
-  // Excluir ganadores previos si está activo (lista, no física)
   const pool = elChkExclude.checked
     ? items.filter(x => !historyWinners.includes(x.toLowerCase()))
     : items.slice();
@@ -272,58 +271,91 @@ function spin(){
   spinning = true;
   elWinner.textContent = "…";
 
-  // --- Sensación de giro (ajustá a gusto) ---
-  const minRevs = 16;             // vueltas mínimas
-  const maxRevs = 26;             // vueltas máximas
+  const minRevs = 16, maxRevs = 26;
   const totalRevs = minRevs + Math.random() * (maxRevs - minRevs);
-  const theta = totalRevs * TAU;  // ángulo total
+  const theta = totalRevs * TAU;
 
-  const minDur = 16.0;            // segundos mínimos
-  const maxDur = 30.0;            // segundos máximos
+  const minDur = 16.0, maxDur = 30.0;
   const T = minDur + Math.random() * (maxDur - minDur);
 
-  // Con desaceleración coseno: θ = ω0 * T / 2  =>  ω0 = 2θ / T
   const omega0 = (2 * theta) / T;
 
   let t0 = performance.now();
   let last = t0;
 
+  // --- params del wobble (rebote) ---
+  let wobblePhase = false;
+  let wobbleStart = 0;
+  const wobbleDur = 800;                // duración total del rebote (ms)
+  const stepAng = sectorStep();         // tamaño de sector
+  const wobbleAmp0 = Math.min(stepAng * 0.35, 0.25); // amplitud máx (rad) – pequeña
+  const wobbleFreq = 7;                 // Hz aprox. (vaivenes por segundo)
+  let baseAngle = 0;                    // ángulo desde el que “oscila”
+
   function tick(now){
     const dt = Math.min(0.05, (now - last) / 1000);
     last = now;
 
-    const t = (now - t0) / 1000;
-    const u = Math.min(1, t / T); // 0..1
-    const omega = omega0 * 0.5 * (1 + Math.cos(Math.PI * u)); // cae de ω0 -> 0
+    if (!wobblePhase){
+      // fase principal con perfil coseno
+      const t = (now - t0) / 1000;
+      const u = Math.min(1, t / T); // 0..1
+      const omega = omega0 * 0.5 * (1 + Math.cos(Math.PI * u)); // ω decae a 0
+      angle += omega * dt;
 
-    angle += omega * dt;
+      // 🔊 Tick por sector
+      if (items.length > 0) {
+        const step = sectorStep();
+        const rel = normAngle(POINTER_ANGLE - normAngle(angle));
+        const currentSector = Math.floor(rel / step);
+        if (typeof tick.lastSector === 'undefined') tick.lastSector = currentSector;
+        if (currentSector !== tick.lastSector) { playTick(); tick.lastSector = currentSector; }
+      }
 
-    // 🔊 Tick por sector
+      drawWheel();
+
+      if (u >= 1) {
+        // inicia la oscilación amortiguada
+        wobblePhase = true;
+        wobbleStart = now;
+        baseAngle = angle; // oscilamos alrededor de donde quedó
+      } else {
+        requestAnimationFrame(tick);
+      }
+      return;
+    }
+
+    // --- FASE WOBBLE: oscilación amortiguada alrededor de baseAngle ---
+    const tw = (now - wobbleStart) / wobbleDur; // 0..1
+    if (tw >= 1) {
+      spinning = false;
+      drawWheel();
+      stopAndAnnounce(); // ganador = donde terminó, sin imán
+      return;
+    }
+
+    // Amplitud que decae exponencialmente
+    const amp = wobbleAmp0 * Math.exp(-3.2 * tw); // “cola” corta y realista
+    // Oscilamos ±amp en torno a baseAngle
+    const phase = 2 * Math.PI * wobbleFreq * ( (now - wobbleStart) / 1000 );
+    angle = baseAngle + amp * Math.sin(phase);
+
+    // 🔊 Los ticks siguen funcionando (puede sonar 1–2 clics extra)
     if (items.length > 0) {
       const step = sectorStep();
       const rel = normAngle(POINTER_ANGLE - normAngle(angle));
       const currentSector = Math.floor(rel / step);
       if (typeof tick.lastSector === 'undefined') tick.lastSector = currentSector;
-      if (currentSector !== tick.lastSector) {
-        playTick();
-        tick.lastSector = currentSector;
-      }
+      if (currentSector !== tick.lastSector) { playTick(); tick.lastSector = currentSector; }
     }
 
     drawWheel();
-
-    if (u >= 1) {
-      spinning = false;
-      drawWheel();
-      stopAndAnnounce(); // SIN imán: queda donde terminó
-      return;
-    }
-
     requestAnimationFrame(tick);
   }
 
   requestAnimationFrame(tick);
 }
+
 
 function announceWinner(name) {
   elWinner.textContent = name;
@@ -401,10 +433,8 @@ function seedIfEmpty(){
       "Valheim","The Planet Crafter","Grand Theft Auto V Legacy",
       "Hogwarts Legacy","Risk of Rain 2","Phasmophobia","Deep Rock Galactic","The Witcher 3"
     ];
-    elInput.value = demo.join("\n");
-    items = demo.slice();
-    updateCount();
-    console.log("[Ruleta] demo precargada:", items.length);
+    elInput.value = demo.join("\n"); // solo muestra el ejemplo
+    console.log("[Ruleta] ejemplo precargado en el textarea");
   }
 }
 
@@ -471,6 +501,7 @@ loadState();
 seedIfEmpty();
 drawWheel();
 console.log("[Ruleta] drawWheel -> items:", items.length);
+
 
 
 
