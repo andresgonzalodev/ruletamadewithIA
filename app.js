@@ -261,10 +261,12 @@ function currentIndexAt(angleNow = angle){
 }
 
 function stopAndAnnounce(){
+  if (!items.length) return;
   const idx = currentIndexAt(angle);
-  winningIndex = idx;
+  winningIndex = Math.max(0, Math.min(items.length - 1, idx));
+  const name = items[winningIndex] || "—";
   drawWheel(winningIndex);
-  announceWinner(items[idx]);
+  announceWinner(name);
 }
 
 // Giro con perfil coseno + wobble (oscilación amortiguada) al final
@@ -365,7 +367,8 @@ function spin(){
 function announceWinner(name) {
   elWinner.textContent = name;
   elLast.textContent = `Ganador: ${name}`;
-  if (!historyWinners.includes(name.toLowerCase())) {
+  // guarda historial si aplica
+  if (name && !historyWinners.includes(name.toLowerCase())) {
     historyWinners.push(name.toLowerCase());
     saveState();
   }
@@ -494,6 +497,7 @@ elCanvas.addEventListener("mouseleave", () => {
 loadState();
 drawWheel();
 console.log("[Ruleta] drawWheel -> items:", items.length);
+
 
 
 
