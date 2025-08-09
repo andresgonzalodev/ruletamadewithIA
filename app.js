@@ -328,14 +328,18 @@ function stopAndAnnounce(){
 }
 
 function announceWinner(name) {
-  elWinner.textContent = name;                 // texto grande al centro
-  elLast.textContent = `Ganador: ${name}`;     // pie
+  elWinner.textContent = name;
+  elWinner.classList.remove('pop');
+  // forzamos reflow para reiniciar la animación si se repite
+  void elWinner.offsetWidth;
+  elWinner.classList.add('pop');
+
+  elLast.textContent = `Ganador: ${name}`;
   if (name && !historyWinners.includes(name.toLowerCase())) {
     historyWinners.push(name.toLowerCase());
     saveState();
   }
 }
-
 
 // Giro con perfil coseno + wobble visible (por px) al final
 function spin(){
@@ -575,6 +579,7 @@ elCanvas.addEventListener("mouseleave", () => {
 loadState();
 drawWheel();
 console.log("[Ruleta] drawWheel -> items:", items.length);
+
 
 
 
