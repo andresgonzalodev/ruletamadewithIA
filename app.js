@@ -3,7 +3,7 @@ console.log("[Ruleta] app.js cargado");
 /* ===== util ===== */
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
-const LSKEY = "ruleta_gamer_v2";
+const LSKEY = "ruleta_gamer_v3";
 
 /* ===== state ===== */
 let items = [];          // array de strings (juegos actuales)
@@ -210,6 +210,65 @@ function drawWheel(highlightIdx = -1) {
     }
   }
 
+  // Zoom animado del sector ganador (overlay, no cambia la física)
+function animateWinnerZoom(idx){
+  if (idx < 0 || idx >= items.length) return;
+
+  const W = elCanvas.width, H = elCanvas.height;
+  const cx = W / 2, cy = H / 2;
+  const outer = Math.min(W, H) * 0.48;
+  const inner = outer * 0.18;
+  const step = (Math.PI * 2) / items.length;
+  const start = angle + idx * step;
+  const end = start + step;
+
+  const easeOutBack = t => { const c1=1.70158, c3=c1+1; return 1 + c3*Math.pow(t-1,3) + c1*Math.pow(t-1,2); };
+
+  const dur = 950; // ms
+  const t0 = performance.now();
+
+  function frame(now){
+    const u = Math.min(1, (now - t0) / dur);
+    const e = easeOutBack(u);
+
+    // redibuja rueda normal con highlight
+    drawWheel(idx);
+
+    // overlay del ganador con "zoom"
+    const grow = 1 + 0.14 * e;             // hasta +14% del radio
+    const glow = Math.floor(6 + 10*e);     // borde que crece
+    const rOuter = outer * grow;
+    const rInner = inner * Math.max(0.85, 1 - 0.15*e);
+
+    ctx.save();
+    // sector agrandado
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, rOuter, start, end);
+    ctx.closePath();
+    ctx.fillStyle = "rgba(125,211,252,0.24)";
+    ctx.fill();
+
+    // borde brillante
+    ctx.strokeStyle = "rgba(125,211,252,0.55)";
+    ctx.lineWidth = glow;
+    ctx.stroke();
+
+    // halo central
+    const grad = ctx.createRadialGradient(cx, cy, rInner*0.2, cx, cy, rInner*1.05);
+    grad.addColorStop(0, "rgba(125,211,252,0.25)");
+    grad.addColorStop(1, "rgba(125,211,252,0)");
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(cx, cy, rInner*1.05, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+
+    if (u < 1) requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+
   // hueco central
   ctx.beginPath();
   ctx.arc(cx, cy, inner, 0, Math.PI * 2);
@@ -269,7 +328,17 @@ function stopAndAnnounce(){
   announceWinner(name);
 }
 
-// Giro con perfil coseno + wobble (oscilación amortiguada) al final
+function announceWinner(name) {
+  elWinner.textContent = name;                 // texto grande al centro
+  elLast.textContent = `Ganador: ${name}`;     // pie
+  if (name && !historyWinners.includes(name.toLowerCase())) {
+    historyWinners.push(name.toLowerCase());
+    saveState();
+  }
+}
+
+
+// Giro con perfil coseno + wobble visible (por px) al final
 function spin(){
   if (spinning || items.length === 0) return;
 
@@ -281,6 +350,7 @@ function spin(){
   spinning = true;
   elWinner.textContent = "…";
 
+  // giro base
   const minRevs = 16, maxRevs = 26;
   const totalRevs = minRevs + Math.random() * (maxRevs - minRevs);
   const theta = totalRevs * TAU;
@@ -293,14 +363,20 @@ function spin(){
   let t0 = performance.now();
   let last = t0;
 
-  // --- wobble params ---
+  // wobble
   let wobblePhase = false;
   let wobbleStart = 0;
-  const wobbleDur = 850;                 // ms del rebote
-  const stepAng = sectorStep();
-  const wobbleAmp0 = Math.min(stepAng * 0.32, 0.24); // amplitud inicial (rad)
-  const wobbleFreq = 7.5;                // vaivenes por segundo aprox.
   let baseAngle = 0;
+  let wobbleAmp0 = 0;
+
+  const stepAng = sectorStep();
+  const W = elCanvas.width, H = elCanvas.height;
+  const outer = Math.min(W, H) * 0.48;
+  const px2rad = px => px / outer;
+
+  const WOBBLE_DUR  = 1400;  // ms (más largo)
+  const WOBBLE_FREQ = 5.5;   // Hz
+  const WOBBLE_MIN_PX = 18;  // ≈ recorrido visible en el borde
 
   function tick(now){
     const dt = Math.min(0.05, (now - last) / 1000);
@@ -309,8 +385,8 @@ function spin(){
     if (!wobblePhase){
       // fase principal (coseno)
       const t = (now - t0) / 1000;
-      const u = Math.min(1, t / T); // 0..1
-      const omega = omega0 * 0.5 * (1 + Math.cos(Math.PI * u)); // ω→0
+      const u = Math.min(1, t / T);
+      const omega = omega0 * 0.5 * (1 + Math.cos(Math.PI * u));
       angle += omega * dt;
 
       // ticks
@@ -325,53 +401,56 @@ function spin(){
       drawWheel();
 
       if (u >= 1) {
-        // pasa a wobble
+        // iniciar wobble visible y **dentro** del sector
         wobblePhase = true;
         wobbleStart = now;
         baseAngle = angle;
+
+        const baseAmpPx = WOBBLE_MIN_PX;
+        const maxAmpByPixels = px2rad(baseAmpPx);        // en rad
+        const hardLimit = stepAng * 0.45;                // no más del 45% del sector
+        let baseAmp0 = Math.min(hardLimit, maxAmpByPixels);
+
+        // recorte para no cruzar los bordes del sector ganador
+        const idx = currentIndexAt(baseAngle);
+        const rel = normAngle(POINTER_ANGLE - normAngle(baseAngle));
+        const posInSector = rel - idx * stepAng;         // 0..stepAng
+        const margin = Math.max(px2rad(3), stepAng * 0.08);
+        wobbleAmp0 = Math.max(0, Math.min(baseAmp0, Math.min(posInSector, stepAng - posInSector) - margin));
+
+        // si no hay margen, terminamos directo
+        if (wobbleAmp0 < 1e-4){
+          spinning = false;
+          drawWheel();
+          stopAndAnnounce();
+          return;
+        }
       } else {
         requestAnimationFrame(tick);
       }
       return;
     }
 
-    // --- fase wobble: oscilación amortiguada alrededor de baseAngle ---
-    const tw = (now - wobbleStart) / wobbleDur; // 0..1
+    // fase wobble: oscilación amortiguada
+    const tw = (now - wobbleStart) / WOBBLE_DUR; // 0..1
     if (tw >= 1) {
       spinning = false;
+      angle = baseAngle; // fijamos exactamente
       drawWheel();
-      stopAndAnnounce(); // sin imán
+      stopAndAnnounce();
+      animateWinnerZoom(winningIndex); // <-- zoom visual
       return;
     }
 
-    const amp = wobbleAmp0 * Math.exp(-3.2 * tw); // decaimiento
-    const phase = 2 * Math.PI * wobbleFreq * ((now - wobbleStart) / 1000);
+    const amp = wobbleAmp0 * Math.exp(-2.2 * tw);
+    const phase = 2 * Math.PI * WOBBLE_FREQ * ((now - wobbleStart) / 1000);
     angle = baseAngle + amp * Math.sin(phase);
-
-    // ticks durante el wobble (puede sonar 1–2 clics extra)
-    if (items.length > 0) {
-      const step = sectorStep();
-      const rel = normAngle(POINTER_ANGLE - normAngle(angle));
-      const currentSector = Math.floor(rel / step);
-      if (typeof tick.lastSector === 'undefined') tick.lastSector = currentSector;
-      if (currentSector !== tick.lastSector) { playTick(); tick.lastSector = currentSector; }
-    }
 
     drawWheel();
     requestAnimationFrame(tick);
   }
 
   requestAnimationFrame(tick);
-}
-
-function announceWinner(name) {
-  elWinner.textContent = name;
-  elLast.textContent = `Ganador: ${name}`;
-  // guarda historial si aplica
-  if (name && !historyWinners.includes(name.toLowerCase())) {
-    historyWinners.push(name.toLowerCase());
-    saveState();
-  }
 }
 
 /* ===== tooltip sobre el lienzo ===== */
@@ -497,6 +576,7 @@ elCanvas.addEventListener("mouseleave", () => {
 loadState();
 drawWheel();
 console.log("[Ruleta] drawWheel -> items:", items.length);
+
 
 
 
