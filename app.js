@@ -408,11 +408,70 @@ function seedIfEmpty(){
   }
 }
 
+/* ===== events ===== */
+(function bindEvents(){
+  // Cargar / Actualizar
+  elBtnLoad?.addEventListener("click", () => {
+    let list = parseTextarea(elInput.value);
+    if (elChkDedup.checked) list = dedup(list);
+    items = list;
+    updateCount(); drawWheel(); saveState();
+    console.log("[Ruleta] cargados:", items.length, "items");
+  });
+
+  // Mezclar
+  elBtnShuffle?.addEventListener("click", () => {
+    if (items.length === 0) return;
+    shuffle(items);
+    drawWheel(); saveState();
+  });
+
+  // Vaciar
+  elBtnClear?.addEventListener("click", () => {
+    items = [];
+    elInput.value = "";
+    updateCount(); drawWheel(); saveState();
+  });
+
+  // Girar (autocarga si te olvidaste de apretar “Cargar”)
+  elBtnSpin?.addEventListener("click", () => {
+    if (items.length === 0 && elInput.value.trim()){
+      let list = parseTextarea(elInput.value);
+      if (elChkDedup.checked) list = dedup(list);
+      items = list; updateCount(); drawWheel(); saveState();
+      console.log("[Ruleta] autocarga antes de girar:", items.length);
+    }
+    spin();
+  });
+
+  // Otra opción (mezcla y gira)
+  elBtnAlt?.addEventListener("click", () => {
+    if (items.length === 0) return;
+    shuffle(items);
+    drawWheel();
+    spin();
+  });
+
+  // Reiniciar historial
+  elBtnReset?.addEventListener("click", () => {
+    historyWinners = [];
+    saveState();
+    elLast.textContent = "Historial de ganadores reiniciado.";
+  });
+
+  // Cambios de opciones visuales
+  [elChkDedup, elChkExclude, elColorMode, elLabelMode]
+    .forEach(el => el?.addEventListener("change", () => { saveState(); drawWheel(); }));
+
+  console.log("[Ruleta] eventos ligados");
+})();
+
 /* ===== init ===== */
 loadState();
 seedIfEmpty();
 drawWheel();
 console.log("[Ruleta] drawWheel -> items:", items.length);
+
 
 
 
