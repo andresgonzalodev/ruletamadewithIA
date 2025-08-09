@@ -1,3 +1,5 @@
+console.log("[Ruleta] app.js cargado");
+
 /* ===== util ===== */
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
@@ -14,7 +16,10 @@ let winningIndex = -1;
 
 /* ===== elements ===== */
 const elCanvas = $("#wheel");
+
 const ctx = elCanvas.getContext("2d");
+if (!ctx) console.error("Canvas no encontrado o sin contexto 2D");
+
 const elInput = $("#gamesInput");
 const elCount = $("#countBadge");
 const elWinner = $("#winnerText");
@@ -393,3 +398,4 @@ elCanvas.addEventListener("mouseleave", () => {
 /* ===== init ===== */
 loadState();
 drawWheel();
+
