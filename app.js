@@ -14,6 +14,9 @@ let targetAngle = 0;     // destino de la animación (no usado en este modelo)
 let spinStartTime = 0;
 let winningIndex = -1;
 
+let zoomRAF = null;
+let zoomActive = false;
+
 /* ===== elements ===== */
 const elCanvas = $("#wheel");
 
@@ -244,25 +247,27 @@ function animateWinnerZoom(idx){
   const end = start + step;
 
   const easeOutBack = t => { const c1=1.70158, c3=c1+1; return 1 + c3*Math.pow(t-1,3) + c1*Math.pow(t-1,2); };
-
-  const dur = 950; // ms
+  const dur = 950;
   const t0 = performance.now();
 
+  // si había un zoom en curso, cancelarlo
+  zoomActive = false;
+  if (zoomRAF) { cancelAnimationFrame(zoomRAF); zoomRAF = null; }
+  zoomActive = true;
+
   function frame(now){
+    if (!zoomActive) return; // abortado por nuevo spin
     const u = Math.min(1, (now - t0) / dur);
     const e = easeOutBack(u);
 
-    // redibuja rueda normal con highlight
     drawWheel(idx);
 
-    // overlay del ganador con "zoom"
-    const grow = 1 + 0.14 * e;             // hasta +14% del radio
-    const glow = Math.floor(6 + 10*e);     // borde que crece
+    const grow = 1 + 0.14 * e;
+    const glow = Math.floor(6 + 10*e);
     const rOuter = outer * grow;
     const rInner = inner * Math.max(0.85, 1 - 0.15*e);
 
     ctx.save();
-    // sector agrandado
     ctx.beginPath();
     ctx.moveTo(cx, cy);
     ctx.arc(cx, cy, rOuter, start, end);
@@ -270,12 +275,10 @@ function animateWinnerZoom(idx){
     ctx.fillStyle = "rgba(125,211,252,0.24)";
     ctx.fill();
 
-    // borde brillante
     ctx.strokeStyle = "rgba(125,211,252,0.55)";
     ctx.lineWidth = glow;
     ctx.stroke();
 
-    // halo central
     const grad = ctx.createRadialGradient(cx, cy, rInner*0.2, cx, cy, rInner*1.05);
     grad.addColorStop(0, "rgba(125,211,252,0.25)");
     grad.addColorStop(1, "rgba(125,211,252,0)");
@@ -285,19 +288,40 @@ function animateWinnerZoom(idx){
     ctx.fill();
     ctx.restore();
 
-    if (u < 1) requestAnimationFrame(frame);
+    if (u < 1) {
+      zoomRAF = requestAnimationFrame(frame);
+    } else {
+      zoomActive = false;
+      zoomRAF = null;
+    }
   }
-  requestAnimationFrame(frame);
+  zoomRAF = requestAnimationFrame(frame);
 }
 
 /* ===== spin logic (física + tick) ===== */
 // Audio para el tick
+// Prepara el sonido base una sola vez (ya lo tenés)
 const tickSound = new Audio('tick.wav');
-tickSound.volume = 0.35; // volumen (0.0 a 1.0)
+tickSound.preload = 'auto';
+tickSound.volume = 0.35;
+
+// Cada tick usa un clon para evitar pausar el .play() en curso
 function playTick() {
-  tickSound.currentTime = 0.15; // ajusta según dónde esté el “tick” en tu wav
-  tickSound.play();
-  setTimeout(() => { tickSound.pause(); }, 80);
+  const click = tickSound.cloneNode(true);
+  click.currentTime = 0.15;              // offset donde está el “click”
+  click.volume = tickSound.volume;
+
+  const p = click.play();
+  if (p && typeof p.catch === "function") {
+    p.catch(() => { /* silencio: puede fallar antes del primer gesto */ });
+  }
+
+  // Cortamos el clon a los ~100–140ms para que sea cortito
+  setTimeout(() => {
+    click.pause();
+    // liberar recursos del clon
+    click.src = "";
+  }, 120);
 }
 
 let omega = 0;           // velocidad angular (rad/s)
@@ -345,6 +369,10 @@ function announceWinner(name) {
 function spin(){
   if (spinning || items.length === 0) return;
 
+  //cancelar zoom anterior si se vuelve a girar
+  zoomActive = false;
+  if (zoomRAF) { cancelAnimationFrame(zoomRAF); zoomRAF = null; }
+
   const pool = elChkExclude.checked
     ? items.filter(x => !historyWinners.includes(x.toLowerCase()))
     : items.slice();
@@ -379,7 +407,7 @@ function spin(){
 
   const WOBBLE_DUR  = 1700;  // ms (más largo)
   const WOBBLE_FREQ = 4.8;   // Hz
-  const WOBBLE_MIN_PX = 40;  // ≈ recorrido visible en el borde
+  const WOBBLE_MIN_PX = 50;  // ≈ recorrido visible en el borde
 
   function tick(now){
     const dt = Math.min(0.05, (now - last) / 1000);
@@ -445,7 +473,7 @@ function spin(){
       return;
     }
 
-    const amp = wobbleAmp0 * Math.exp(-1.3 * tw);
+    const amp = wobbleAmp0 * Math.exp(-0.9 * tw);
     const phase = 2 * Math.PI * WOBBLE_FREQ * ((now - wobbleStart) / 1000);
     angle = baseAngle + amp * Math.sin(phase);
 
@@ -579,6 +607,7 @@ elCanvas.addEventListener("mouseleave", () => {
 loadState();
 drawWheel();
 console.log("[Ruleta] drawWheel -> items:", items.length);
+
 
 
 
