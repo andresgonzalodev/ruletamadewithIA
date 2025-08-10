@@ -9,7 +9,7 @@
 <body>
   <header class="topbar">
     <h1>Ruleta Gamer</h1>
-    <p class="sub">Pega tus juegos (uno por línea) y probá suerte 🎲</p>
+    <p class="sub">Pegá tus juegos (uno por línea) y probá suerte 🎲</p>
   </header>
 
   <main class="layout">
@@ -47,31 +47,30 @@ Red Dead Redemption 2
     </section>
 
     <section class="wheel-wrap">
-<div class="wheel-options">
-  <label>
-    Colores:
-    <select id="colorMode">
-      <option value="triad">Sobrio (3 tonos)</option>
-      <option value="rainbow">Arco iris</option>
-    </select>
-  </label>
-  <label>
-    Etiquetas en sectores:
-    <select id="labelMode">
-      <option value="none">Ninguna</option>
-      <option value="index">Índice (#1, #2…)</option>
-      <option value="abbr">Abreviada (3–4 letras)</option>
-    </select>
-  </label>
-</div>
+      <div class="wheel-options">
+        <label>
+          Colores:
+          <select id="colorMode">
+            <option value="triad">Sobrio (3 tonos)</option>
+            <option value="rainbow">Arco iris</option>
+          </select>
+        </label>
+        <label>
+          Etiquetas en sectores:
+          <select id="labelMode">
+            <option value="none">Ninguna</option>
+            <option value="index">Índice (#1, #2…)</option>
+            <option value="abbr">Abreviada (3–4 letras)</option>
+          </select>
+        </label>
+      </div>
 
-<div class="canvas-wrap">
-  <canvas id="wheel" width="700" height="700" aria-label="Ruleta"></canvas>
-  <div class="pointer" aria-hidden="true"></div>
-  <div class="winner" id="winnerText">—</div>
-  <!-- Tooltip dentro del wrap para que quede por encima del canvas -->
-  <div id="wheelTooltip" class="wheel-tip" hidden></div>
-</div>
+      <div class="canvas-wrap">
+        <canvas id="wheel" width="700" height="700" aria-label="Ruleta"></canvas>
+        <div class="pointer" aria-hidden="true"></div>
+        <div class="winner" id="winnerText">—</div>
+        <div id="wheelTooltip" class="wheel-tip" hidden></div>
+      </div>
 
       <div class="spin-controls">
         <button id="btnSpin" class="btn primary large">Girar 🎁</button>
@@ -83,12 +82,9 @@ Red Dead Redemption 2
   </main>
 
   <footer class="foot">
-    <small>Hecho por Andres Gonzalo con ChatGPT 5. Nota: Tus datos quedan en tu navegador.</small>
+    <small>Hecho por Andres Gonzalo con ChatGPT 5. Nota: tus datos quedan en tu navegador.</small>
   </footer>
 
   <script src="app.js"></script>
 </body>
 </html>
-
-
-
